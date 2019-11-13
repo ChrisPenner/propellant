@@ -5,7 +5,7 @@ import Propellant
 import Algebra.Lattice.Wide
 import Control.Applicative
 
-pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Propagator
+pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Builder ()
 pBinOp f inA inB out = do
     addNeighbour inA p
     addNeighbour inB p
@@ -15,49 +15,49 @@ pBinOp f inA inB out = do
         result <- liftA2 f (contents inA) (contents inB)
         addContent result out
 
-adder :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+adder :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 adder a b c = pBinOp (liftA2 (+)) a b c
 
-subtractor :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+subtractor :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 subtractor = pBinOp (liftA2 (-))
 
-multiplier :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+multiplier :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 multiplier = pBinOp (liftA2 (*))
 
-divider :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+divider :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 divider = pBinOp (liftA2 (/))
 
-constant :: Info i => i -> Cell i -> Propagator
-constant i cell = addContent i cell
+constant :: Info i => i -> Cell i -> Builder ()
+constant i cell = scheduleB $ addContent i cell
 
-constant' :: (Eq i) => i -> Cell (Wide i) -> Propagator
-constant' i cell = addContent (Middle i) cell
+constant' :: (Eq i) => i -> Cell (Wide i) -> Builder ()
+constant' i cell = scheduleB $ addContent (Middle i) cell
 
-sum :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
-sum inA inB total =
+sum :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+sum inA inB total = do
     adder inA inB total
-    <> subtractor total inA inB
-    <> subtractor total inB inA
+    subtractor total inA inB
+    subtractor total inB inA
 
-sub :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
-sub inA inB total =
+sub :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+sub inA inB total = do
     subtractor inA inB total
-    <> adder total inB inA
-    <> subtractor inA total inB
+    adder total inB inA
+    subtractor inA total inB
 
-mult :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
-mult inA inB total =
+mult :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+mult inA inB total = do
     multiplier inA inB total
-    <> divider total inB inA
-    <> divider total inA inB
+    divider total inB inA
+    divider total inA inB
 
-div :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
-div inA inB total =
+div :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+div inA inB total = do
     divider inA inB total
-    <> multiplier inB total inA
-    <> divider inA total inB
+    multiplier inB total inA
+    divider inA total inB
 
-eq :: (Info a) => Cell a -> Cell a -> Propagator
+eq :: (Info a) => Cell a -> Cell a -> Builder ()
 eq inA inB = do
     addNeighbour inA p
     addNeighbour inB p
@@ -69,7 +69,7 @@ eq inA inB = do
         addContent a inB
         addContent b inA
 
-map :: (Info b) => (a -> b) -> Cell a -> Cell b -> Propagator
+map :: (Info b) => (a -> b) -> Cell a -> Cell b -> Builder ()
 map f inp out = do
     addNeighbour inp p
   where
@@ -78,25 +78,25 @@ map f inp out = do
        a <- contents inp
        addContent (f a) out
 
-(-!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(-!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 (-!) = sub
 
-(+!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(+!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 (+!) = Propellant.Propagators.sum
 
-(*!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(*!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 (*!) = mult
 
-(/!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(/!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
 (/!) = Propellant.Propagators.div
 
-(=!) :: Cell a -> (Cell a -> Propagator) -> Propagator
+(=!) :: Cell a -> (Cell a -> Builder ()) -> Builder ()
 (=!) a f = (f a)
 
-(==!) :: (Info a) => Cell a -> Cell a -> Propagator
+(==!) :: (Info a) => Cell a -> Cell a -> Builder ()
 (==!) = eq
 
-store :: Info a => (Cell a -> Propagator) -> Prop (Cell a)
+store :: Info a => (Cell a -> Builder ()) -> Builder (Cell a)
 store f = do
     c <- emptyCell
     f c
@@ -105,5 +105,5 @@ store f = do
 -- (%~!) :: Info b => Cell a -> (a -> b) -> Prop (Cell b)
 -- (%~!) a f = store (Propellant.Propagators.map f a)
 
-(%~!) :: Info b => Cell a -> (a -> b) -> Cell b -> Propagator
+(%~!) :: Info b => Cell a -> (a -> b) -> Cell b -> Builder ()
 (%~!) a f out = Propellant.Propagators.map f a out

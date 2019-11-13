@@ -20,6 +20,9 @@ data Cell i =
 
 type Info i = (BoundedJoinSemiLattice i, Eq i)
 type Scheduler = TQueue Propagator
+newtype Builder a = Builder {runBuilder :: ReaderT Scheduler STM a}
+  deriving newtype (Functor, Applicative, Monad, MonadReader Scheduler)
+
 newtype Prop a = Prop {runProp :: ReaderT Scheduler STM a}
   deriving newtype (Functor, Applicative, Monad, MonadReader Scheduler)
 
@@ -34,15 +37,15 @@ instance Monoid m => Monoid (Prop m) where
 makeLenses ''Cell
 
 contents :: Cell i -> Prop i
-contents (Cell iT _) = liftSTM $ readTVar iT
+contents (Cell iT _) = liftSTMP $ readTVar iT
 
 -- newCell :: i -> IO (Cell i)
 -- newCell i = Cell <$> newTVarIO i <*> newTVarIO []
 
-newCell :: i -> Prop (Cell i)
-newCell i = Cell <$> liftSTM (newTVar i) <*> liftSTM (newTVar [])
+newCell :: i -> Builder (Cell i)
+newCell i = Cell <$> liftSTMB (newTVar i) <*> liftSTMB (newTVar [])
 
-emptyCell :: Info i => Prop (Cell i)
+emptyCell :: Info i => Builder (Cell i)
 emptyCell = newCell bottom
 
 newCellT :: i -> STM (Cell i)
@@ -54,34 +57,41 @@ readCell = readTVarIO . cellContent
 readCellT :: Cell i -> STM i
 readCellT = readTVar . cellContent
 
-liftSTM :: STM a -> Prop a
-liftSTM = Prop . lift
+liftSTMP :: STM a -> Prop a
+liftSTMP = Prop . lift
+
+liftSTMB :: STM a -> Builder a
+liftSTMB = Builder . lift
+
 
 addContent :: (Info i) => i -> Cell i -> Propagator
 addContent info cell@(Cell c _) = do
-    before <- liftSTM $ readTVar c
+    before <- liftSTMP $ readTVar c
     let after = before \/ info
     when (before /= after) $ do
-        liftSTM $ writeTVar c after
+        liftSTMP $ writeTVar c after
         propagate cell
 
-propagate :: Cell i -> Prop ()
+propagate :: Cell i -> Propagator
 propagate (Cell _ depsT) = do
-    deps <- liftSTM $ readTVar depsT
-    for_ deps schedule
+    deps <- liftSTMP $ readTVar depsT
+    for_ deps (Prop . schedule')
 
-schedule :: Propagator -> Prop ()
-schedule m = do
+scheduleB :: Propagator -> Builder ()
+scheduleB = Builder . schedule'
+
+schedule' :: Propagator -> ReaderT Scheduler STM ()
+schedule' m = do
     sched <- ask
-    liftSTM $ writeTQueue sched m
+    lift $ writeTQueue sched m
 
-addNeighbour :: Cell i -> Propagator -> Prop ()
+addNeighbour :: Cell i -> Propagator -> Builder ()
 addNeighbour cell prop  = do
-    liftSTM $ modifyTVar (cellDependents cell) (prop:)
-    schedule prop
+    Builder . lift $ modifyTVar (cellDependents cell) (prop:)
+    scheduleB prop
 
-quiesce :: Prop a -> IO a
-quiesce (Prop m) = do
+quiesce :: Builder a -> IO a
+quiesce (Builder m) = do
     sched <- newScheduler
     a <- atomically . flip runReaderT sched $ m
     -- print msg

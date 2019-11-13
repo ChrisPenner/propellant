@@ -7,8 +7,10 @@ import Propellant.Lattices.Wide
 import Algebra.Lattice.Wide as W
 import Algebra.Lattice.Lifted as L
 import Text.Printf
+import Debug.Trace
+import Control.Concurrent
 
-f2c :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Propagator
+f2c :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
 f2c fahrenheit celsius = do
     thirtyTwo <- newCell (pure 32)
     fminus32 <- emptyCell
@@ -19,7 +21,7 @@ f2c fahrenheit celsius = do
     cTimesNine =! (fminus32 *! five)
     celsius =! (cTimesNine /! nine)
 
-f2c' :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Propagator
+f2c' :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
 f2c' fahrenheit celsius = do
     thirtyTwo <- store $ constant' 32
     five  <- store $ constant' 5
@@ -28,17 +30,10 @@ f2c' fahrenheit celsius = do
     cTimesNine <- store $ fminus32 *! five
     celsius =! (cTimesNine /! nine)
 
-f2c'' :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Propagator
+f2c'' :: (Show n, Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
 f2c'' fahrenheit celsius = do
-    P.map (\f -> (f - 32) * (5 / 9)) fahrenheit celsius 
-    P.map (\c -> (c * (9 / 5)) + 32) celsius fahrenheit
-    -- thirtyTwo <- store $ constant' 32
-    -- five  <- store $ constant' 5
-    -- nine  <- store $ constant' 9
-    -- fminus32 <- store $ fahrenheit -! thirtyTwo
-    -- cTimesNine <- store $ fminus32 *! five
-    -- celsius =! (cTimesNine /! nine)
-
+    P.map (\f -> traceShow f . traceShowId $ (f - 32) * (5 / 9)) fahrenheit celsius
+    P.map (\c -> traceShow c . traceShowId $ (c * (9 / 5)) + 32) celsius fahrenheit
 
 main :: IO ()
 main = do
