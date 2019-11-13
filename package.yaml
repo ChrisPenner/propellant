@@ -26,6 +26,7 @@ dependencies:
 - stm
 - containers
 - lattices
+- concurrency
 
 ghc-options:
   - -Wall

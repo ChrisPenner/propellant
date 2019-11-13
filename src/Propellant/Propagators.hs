@@ -1,15 +1,15 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Propellant.Propagators where
 
 import Propellant
 import Algebra.Lattice.Wide
 import Control.Applicative
-import Control.Monad.Trans
 
 pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Propagator
-pBinOp f inA inB out = Propagator ["binop setup"] $ do
-    let p = Propagator ["binop"] $ do
-        result <- lift $ liftA2 f (contents inA) (contents inB)
-        runPropagator $ addContent result out
+pBinOp f inA inB out = do
+    let p :: Propagator = do
+        result <- liftSTM $ liftA2 f (contents inA) (contents inB)
+        addContent result out
     addNeighbour inA p
     addNeighbour inB p
 
@@ -54,3 +54,8 @@ div inA inB total =
     divider inA inB total
     <> multiplier inB total inA
     <> divider inA total inB
+
+map :: (Info b) => (a -> b) -> Cell a -> Cell b -> Propagator
+map f inp out = do
+    a <- liftSTM $ contents inp
+    addContent (f a) out
