@@ -8,7 +8,7 @@ import Algebra.Lattice
 data Evidence e v = Evidence (M.Map e v)
                   | NoEvidence
                   | TotalContradiction
-  deriving Show
+  deriving (Show, Eq)
 
 implies :: e -> v -> Evidence e v
 implies e v = Evidence (M.singleton e v)

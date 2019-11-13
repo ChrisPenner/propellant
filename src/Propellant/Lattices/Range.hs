@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Propellant.Lattices.Range where
 
 import Algebra.Lattice
@@ -17,7 +18,6 @@ instance (Ord n, Bounded n) => BoundedJoinSemiLattice (Range n) where
 
 instance (Ord n, Bounded n) => BoundedMeetSemiLattice (Range n) where
   top = Range maxBound minBound
-
 
 instance (Eq n, Ord n) => PartialOrd (Range n) where
   leq (Range l h) (Range l' h')

@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Propellant.Propagators where
 
 import Propellant
-import Algebra.Lattice.Wide
 import Control.Applicative
+import Algebra.Lattice
 
 pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Builder ()
 pBinOp f inA inB out = do
@@ -15,43 +16,43 @@ pBinOp f inA inB out = do
         result <- liftA2 f (contents inA) (contents inB)
         addContent result out
 
-adder :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
-adder a b c = pBinOp (liftA2 (+)) a b c
+adder :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
+adder a b c = pBinOp (+) a b c
 
-subtractor :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
-subtractor = pBinOp (liftA2 (-))
+subtractor :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
+subtractor = pBinOp (-)
 
-multiplier :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
-multiplier = pBinOp (liftA2 (*))
+multiplier :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
+multiplier = pBinOp (*)
 
-divider :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
-divider = pBinOp (liftA2 (/))
+divider :: (Fractional n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
+divider = pBinOp (/)
 
 constant :: Info i => i -> Cell i -> Builder ()
 constant i cell = scheduleB $ addContent i cell
 
-constant' :: (Eq i) => i -> Cell (Wide i) -> Builder ()
-constant' i cell = scheduleB $ addContent (Middle i) cell
+constant' :: (Eq (f i), Applicative f, BoundedJoinSemiLattice (f i)) => i -> Cell (f i) -> Builder ()
+constant' i cell = scheduleB $ addContent (pure i) cell
 
-sum :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+sum :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 sum inA inB total = do
     adder inA inB total
     subtractor total inA inB
     subtractor total inB inA
 
-sub :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+sub :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 sub inA inB total = do
     subtractor inA inB total
     adder total inB inA
     subtractor inA total inB
 
-mult :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+mult :: (Fractional n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 mult inA inB total = do
     multiplier inA inB total
     divider total inB inA
     divider total inA inB
 
-div :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+div :: (Fractional n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 div inA inB total = do
     divider inA inB total
     multiplier inB total inA
@@ -78,16 +79,16 @@ map f inp out = do
        a <- contents inp
        addContent (f a) out
 
-(-!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+(-!) :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 (-!) = sub
 
-(+!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+(+!) :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 (+!) = Propellant.Propagators.sum
 
-(*!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+(*!) :: (Fractional n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 (*!) = mult
 
-(/!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Builder ()
+(/!) :: (Fractional n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 (/!) = Propellant.Propagators.div
 
 (=!) :: Cell a -> (Cell a -> Builder ()) -> Builder ()
