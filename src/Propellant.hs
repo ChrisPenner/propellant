@@ -33,14 +33,17 @@ instance Monoid m => Monoid (Prop m) where
 
 makeLenses ''Cell
 
-contents :: Cell i -> STM i
-contents (Cell iT _) = readTVar iT
+contents :: Cell i -> Prop i
+contents (Cell iT _) = liftSTM $ readTVar iT
 
 -- newCell :: i -> IO (Cell i)
 -- newCell i = Cell <$> newTVarIO i <*> newTVarIO []
 
 newCell :: i -> Prop (Cell i)
 newCell i = Cell <$> liftSTM (newTVar i) <*> liftSTM (newTVar [])
+
+emptyCell :: Info i => Prop (Cell i)
+emptyCell = newCell bottom
 
 newCellT :: i -> STM (Cell i)
 newCellT i = Cell <$> newTVar i <*> newTVar []

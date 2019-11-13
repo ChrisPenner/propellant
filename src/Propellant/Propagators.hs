@@ -7,11 +7,13 @@ import Control.Applicative
 
 pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Propagator
 pBinOp f inA inB out = do
-    let p :: Propagator = do
-        result <- liftSTM $ liftA2 f (contents inA) (contents inB)
-        addContent result out
     addNeighbour inA p
     addNeighbour inB p
+  where
+    p :: Propagator
+    p = do
+        result <- liftA2 f (contents inA) (contents inB)
+        addContent result out
 
 adder :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
 adder a b c = pBinOp (liftA2 (+)) a b c
@@ -55,7 +57,53 @@ div inA inB total =
     <> multiplier inB total inA
     <> divider inA total inB
 
+eq :: (Info a) => Cell a -> Cell a -> Propagator
+eq inA inB = do
+    addNeighbour inA p
+    addNeighbour inB p
+  where
+    p :: Propagator
+    p = do
+        a <- contents inA
+        b <- contents inB
+        addContent a inB
+        addContent b inA
+
 map :: (Info b) => (a -> b) -> Cell a -> Cell b -> Propagator
 map f inp out = do
-    a <- liftSTM $ contents inp
-    addContent (f a) out
+    addNeighbour inp p
+  where
+    p :: Propagator
+    p = do
+       a <- contents inp
+       addContent (f a) out
+
+(-!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(-!) = sub
+
+(+!) :: (Num n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(+!) = Propellant.Propagators.sum
+
+(*!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(*!) = mult
+
+(/!) :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+(/!) = Propellant.Propagators.div
+
+(=!) :: Cell a -> (Cell a -> Propagator) -> Propagator
+(=!) a f = (f a)
+
+(==!) :: (Info a) => Cell a -> Cell a -> Propagator
+(==!) = eq
+
+store :: Info a => (Cell a -> Propagator) -> Prop (Cell a)
+store f = do
+    c <- emptyCell
+    f c
+    return c
+
+-- (%~!) :: Info b => Cell a -> (a -> b) -> Prop (Cell b)
+-- (%~!) a f = store (Propellant.Propagators.map f a)
+
+(%~!) :: Info b => Cell a -> (a -> b) -> Cell b -> Propagator
+(%~!) a f out = Propellant.Propagators.map f a out

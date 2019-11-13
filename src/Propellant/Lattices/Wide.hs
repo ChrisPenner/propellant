@@ -12,3 +12,6 @@ instance Num n => Num (Wide n) where
   signum = fmap signum
   fromInteger = pure . fromInteger
 
+instance Fractional n => Fractional (Wide n) where
+  fromRational = pure . fromRational
+  recip = fmap recip
