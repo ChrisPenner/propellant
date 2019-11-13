@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Propellant.Lattices.Wide where
 
@@ -12,6 +13,6 @@ instance Num n => Num (Wide n) where
   signum = fmap signum
   fromInteger = pure . fromInteger
 
-instance Fractional n => Fractional (Wide n) where
+instance Fractional (Wide Rational) where
   fromRational = pure . fromRational
   recip = fmap recip

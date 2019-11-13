@@ -7,10 +7,8 @@ import Propellant.Lattices.Wide
 import Algebra.Lattice.Wide as W
 import Algebra.Lattice.Lifted as L
 import Text.Printf
-import Debug.Trace
-import Control.Concurrent
 
-f2c :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
+f2c :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
 f2c fahrenheit celsius = do
     thirtyTwo <- newCell (pure 32)
     fminus32 <- emptyCell
@@ -21,7 +19,7 @@ f2c fahrenheit celsius = do
     cTimesNine =! (fminus32 *! five)
     celsius =! (cTimesNine /! nine)
 
-f2c' :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
+f2c' :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
 f2c' fahrenheit celsius = do
     thirtyTwo <- store $ constant' 32
     five  <- store $ constant' 5
@@ -30,7 +28,7 @@ f2c' fahrenheit celsius = do
     cTimesNine <- store $ fminus32 *! five
     celsius =! (cTimesNine /! nine)
 
-f2c'' :: (Show n, Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
+f2c'' :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
 f2c'' fahrenheit celsius = do
     fahrenheit !-> \f ->
         addContent ((f - 32) * (5 / 9)) celsius
@@ -45,10 +43,9 @@ main = do
         f2c'' fahrenheit celsius
         constant' (12 :: Rational) celsius
         return (celsius, fahrenheit)
-    c <- readCell celsius
-    f <- readCell fahrenheit
-    print (c, f)
-    -- printf "%f Fahrenheit = %f Celsius\n" f c
+    Middle c <- readCell celsius
+    Middle f <- readCell fahrenheit
+    printf "%f Fahrenheit = %f Celsius\n" (fromRational f :: Float) (fromRational c :: Float)
 
 -- main :: IO ()
 -- main = do
