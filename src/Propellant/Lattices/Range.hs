@@ -23,3 +23,14 @@ instance (Eq n, Ord n) => PartialOrd (Range n) where
   leq (Range l h) (Range l' h')
     | l' >= l && h' <= h = True
     | otherwise = False
+
+instance Num n => Num (Range n) where
+  Range min1 max1 + Range min2 max2 = Range (min1 + min2) (max1 + max2)
+  Range min1 max1 - Range min2 max2 = Range (min1 - max2) (max1 - min2)
+  Range min1 max1 * Range min2 max2 = Range (min1 * min2) (max1 * max2)
+  abs (Range min1 max1) = Range (abs min1) (abs max1)
+  signum (Range min1 max1) = Range (signum min1) (signum max1)
+  fromInteger n = Range (fromInteger n) (fromInteger n)
+instance Fractional n => Fractional (Range n) where
+  fromRational r = Range (fromRational r) (fromRational r)
+  Range min1 max1 / Range min2 max2 = Range (min1 / max2) (max1 / min2)

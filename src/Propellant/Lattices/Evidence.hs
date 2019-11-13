@@ -1,14 +1,29 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE InstanceSigs #-}
 module Propellant.Lattices.Evidence where
 
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Algebra.Lattice
+import Data.Functor.Compose
 
 data Evidence e v = Evidence (M.Map e v)
                   | NoEvidence
                   | TotalContradiction
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
+
+instance (Ord e, Monoid e) => Applicative (Evidence e) where
+  pure v = Evidence (M.singleton mempty v)
+  (<*>) :: forall a b. Evidence e (a -> b) -> Evidence e a -> Evidence e b
+  TotalContradiction <*> _ = TotalContradiction
+  _ <*> TotalContradiction = TotalContradiction
+  _ <*> NoEvidence = NoEvidence
+  NoEvidence <*> _ = NoEvidence
+  Evidence f <*> Evidence a = Evidence (M.fromList results)
+    where
+      results :: [(e, b)]
+      results = getCompose $ Compose (M.toList f) <*> Compose (M.toList a)
 
 implies :: e -> v -> Evidence e v
 implies e v = Evidence (M.singleton e v)
