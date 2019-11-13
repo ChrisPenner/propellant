@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 module Examples.Barometer where
 
 import Propellant
@@ -8,6 +9,18 @@ import Propellant.Lattices.Num
 import Algebra.Lattice.Levitated
 import Text.Printf
 import qualified Data.Set as S
+
+-- fallDuration :: Fractional n => Cell n -> Cell n -> Builder ()
+-- fallDuration time height = do
+--     gravity <- (newCell (Range 9.789 9.832))
+--     oneHalf <- newCell 0.5
+--   (let ((g (make-cell))
+--         (one-half (make-cell))
+--         (t^2 (make-cell))
+--         (gt^2 (make-cell)))
+-- ((constant (make-interval 9.789 9.832)) g) ((constant (make-interval 1/2 1/2)) one-half) (quadratic t t^2)
+-- (product g t^2 gt^2)
+--     (product one-half gt^2 h)))
 
 similarTriangles :: (Fractional n, Info n)
                  => (Cell n, Cell n) -- ^ First triangle (b, h)
@@ -23,35 +36,17 @@ similarTriangles (x1, y1) (x2, y2) = do
 
 main :: IO ()
 main = do
-    (buildingShadow, buildingHeight) <- quiesce $ do
-        barometerHeight <- (emptyCell :: Builder (Cell (Evidence (S.Set String) (Range (Levitated Rational)))))
+    buildingHeight <- quiesce $ do
+        barometerHeight <- (emptyCell :: Builder (Cell (Evidence String (Range (Levitated Rational)))))
         barometerShadow <- emptyCell
         buildingHeight <- emptyCell
         buildingShadow <- emptyCell
         similarTriangles (barometerShadow, barometerHeight) (buildingShadow, buildingHeight)
-        constant (S.singleton "shadow" `implies` Range 54 55) buildingShadow
-        constant (S.singleton "shadow" `implies` Range 0.3 0.32) buildingHeight
-        constant (S.singleton "shadow" `implies` Range 0.3 0.32) barometerShadow
-        return (buildingShadow, buildingHeight)
-    shadow <- readCell buildingShadow
+        constant ("shadow" `implies` Range 54.9 55.1) buildingShadow
+        constant ("blueprints" `implies` Range 54.8 55) buildingShadow
+        constant ("shadow" `implies` Range 0.3 0.32) barometerHeight
+        constant ("measurement" `implies` Range 0.31 0.32) barometerHeight
+        constant ("shadow" `implies` Range 0.36 0.37) barometerShadow
+        return buildingHeight
     height <- readCell buildingHeight
-    print (showEvidence shadow)
-    print (showEvidence height)
-
--- main :: IO ()
--- main = do
---     (buildingShadow, buildingHeight) <- quiesce $ do
---         barometerHeight <- (emptyCell :: Builder (Cell (Evidence String (Range (Levitated Rational)))))
---         barometerShadow <- emptyCell
---         buildingHeight <- emptyCell
---         buildingShadow <- emptyCell
---         similarTriangles (barometerShadow, barometerHeight) (buildingShadow, buildingHeight)
---         constant ("shadow" `implies` Range 54 55) buildingShadow
---         constant ("shadow" `implies` Range 0.3 0.32) buildingHeight
---         constant ("shadow" `implies` Range 0.3 0.32) barometerShadow
---         return (buildingShadow, buildingHeight)
---     shadow <- readCell buildingShadow
---     height <- readCell buildingHeight
---     print (showEvidence shadow)
---     print (showEvidence height)
---     -- printf "%f Fahrenheit = %f Celsius\n" (fromRational shadow :: Float) (fromRational height :: Float)
+    print ((fmap . fmap) (fromRational @Double) <$> showEvidence height)

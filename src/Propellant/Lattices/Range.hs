@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Propellant.Lattices.Range where
 
 import Algebra.Lattice
 import Algebra.PartialOrd
 
 data Range n = Range {rangeMin :: n, rangeMax :: n}
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
 
 instance Ord n => Lattice (Range n) where
   -- meet
