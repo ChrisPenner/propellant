@@ -107,3 +107,13 @@ store f = do
 
 (%~!) :: Info b => Cell a -> (a -> b) -> Cell b -> Builder ()
 (%~!) a f out = Propellant.Propagators.map f a out
+
+subscribe :: Cell a -> (a -> Prop ()) -> Builder ()
+subscribe c f = do
+    addNeighbour c p
+  where
+    p :: Propagator
+    p = contents c >>= f
+
+(!->) :: Cell a -> (a -> Prop ()) -> Builder ()
+(!->) = subscribe

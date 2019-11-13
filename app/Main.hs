@@ -32,8 +32,10 @@ f2c' fahrenheit celsius = do
 
 f2c'' :: (Show n, Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Builder ()
 f2c'' fahrenheit celsius = do
-    P.map (\f -> traceShow f . traceShowId $ (f - 32) * (5 / 9)) fahrenheit celsius
-    P.map (\c -> traceShow c . traceShowId $ (c * (9 / 5)) + 32) celsius fahrenheit
+    fahrenheit !-> \f ->
+        addContent ((f - 32) * (5 / 9)) celsius
+    celsius !-> \c ->
+        addContent ((c * (9 / 5)) + 32) fahrenheit
 
 main :: IO ()
 main = do
@@ -41,11 +43,12 @@ main = do
         fahrenheit <- newCell W.Bottom
         celsius <- newCell W.Bottom
         f2c'' fahrenheit celsius
-        constant' (12 :: Double) celsius
+        constant' (12 :: Rational) celsius
         return (celsius, fahrenheit)
-    Middle c <- readCell celsius
-    Middle f <- readCell fahrenheit
-    printf "%f Fahrenheit = %f Celsius\n" f c
+    c <- readCell celsius
+    f <- readCell fahrenheit
+    print (c, f)
+    -- printf "%f Fahrenheit = %f Celsius\n" f c
 
 -- main :: IO ()
 -- main = do

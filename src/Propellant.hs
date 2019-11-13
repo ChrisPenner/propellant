@@ -37,7 +37,7 @@ instance Monoid m => Monoid (Prop m) where
 makeLenses ''Cell
 
 contents :: Cell i -> Prop i
-contents (Cell iT _) = liftSTMP $ readTVar iT
+contents  = liftSTMP . readTVar . cellContent
 
 -- newCell :: i -> IO (Cell i)
 -- newCell i = Cell <$> newTVarIO i <*> newTVarIO []
