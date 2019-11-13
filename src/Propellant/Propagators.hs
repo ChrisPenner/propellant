@@ -4,7 +4,6 @@ import Propellant
 import Algebra.Lattice.Wide
 import Control.Applicative
 import Control.Monad.Trans
-import Debug.Trace
 
 pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Propagator
 pBinOp f inA inB out = Propagator ["binop setup"] $ do
@@ -49,3 +48,9 @@ mult inA inB total =
     multiplier inA inB total
     <> divider total inB inA
     <> divider total inA inB
+
+div :: (Fractional n, Eq n) => Cell (Wide n) -> Cell (Wide n) -> Cell (Wide n) -> Propagator
+div inA inB total =
+    divider inA inB total
+    <> multiplier inB total inA
+    <> divider inA total inB
