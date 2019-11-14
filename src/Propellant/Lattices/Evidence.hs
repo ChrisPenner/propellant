@@ -2,6 +2,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiWayIf #-}
+
 module Propellant.Lattices.Evidence where
 
 import qualified Data.Set as S
@@ -10,7 +12,6 @@ import Algebra.Lattice
 import Propellant.Lattices.Range
 import Data.Functor.Compose
 import Data.List
-import Algebra.PartialOrd
 import Control.Applicative
 
 data Evidence e v = Evidence (M.Map (S.Set e) v)
@@ -27,26 +28,55 @@ instance (Ord e) => Applicative (Evidence e) where
 implies :: e -> v -> Evidence e v
 implies e v = Evidence (M.singleton (S.singleton e) v)
 
-instance (Lattice v, Ord e) => Lattice (Evidence e v) where
+instance (Lattice v, Ord e, Eq v) => Lattice (Evidence e v) where
   (/\) = error "Evidence has no Meet"
   m \/ n = powerSet m n
 
-powerSet :: (Ord e, Lattice v) => Evidence e v -> Evidence e v -> Evidence e v
-powerSet (Evidence a) (Evidence b) = liftA2 (\/) combined combined
+-- Can make this smarter by ignoring combinations which aren't more precise than their
+-- components
+powerSet :: (Ord e, Eq v, Lattice v) => Evidence e v -> Evidence e v -> Evidence e v
+powerSet (Evidence a) (Evidence b) = clean combined
   where
-    combined = Evidence $ M.unionWith (\/) a b
+    combined = Evidence (M.unionWith (\/) a b)
 
-instance (Lattice v, Ord e) => BoundedJoinSemiLattice (Evidence e v) where
+clean :: (Ord e, Eq b, Lattice b) => Evidence e b -> Evidence e b
+clean (Evidence m) = Evidence . M.fromList $ do
+        (k, v) <- (M.toList m)
+        (k', v') <- (M.toList m)
+        if | k == k' -> return (k, v)
+           | joinLeq v v' -> return (k', v')
+           | joinLeq v' v -> return (k, v)
+           | otherwise -> return $ (k, v) \/ (k', v')
+
+instance (Lattice v, Ord e, Eq v) => BoundedJoinSemiLattice (Evidence e v) where
   bottom = Evidence mempty
 
-partialCompare :: (PartialOrd a) => a -> a -> Ordering
-partialCompare a b
-  | not (comparable a  b) = EQ
-  | leq a b = LT
-  | otherwise = GT
+instance (Ord e, Eq n, Lattice n, Monoid e, Num n) => Num (Evidence e n) where
+  a + b = clean $ liftA2 (+) a b
+  a - b = clean $ liftA2 (-) a b
+  a * b = clean $ liftA2 (*) a b
+  abs = fmap abs
+  signum = fmap signum
+  fromInteger = pure . fromInteger
 
-showBestEvidence :: (Show e, Show v, Ord e, PartialOrd v) => Evidence e v -> String
-showBestEvidence (Evidence m) = uncurry showEvidenceLine . maximumBy partialCompare $ M.toList m
+instance (Ord e, Monoid e, Fractional n, Eq n, Lattice n) => Fractional (Evidence e n) where
+  fromRational = pure . fromRational
+  recip = fmap recip
+
+-- partialCompare :: (PartialOrd a) => a -> a -> Ordering
+-- partialCompare a b
+--   | not (comparable a  b) = EQ
+--   | leq a b = LT
+--   | otherwise = GT
+
+showBestEvidence :: forall e v. (Show e, Show v, Eq v, Lattice v) => Evidence e v -> String
+showBestEvidence (Evidence m) = uncurry showEvidenceLine . foldl1' findBest $ M.toList m
+  where
+    findBest :: (S.Set e, v) -> (S.Set e, v) -> (S.Set e, v)
+    findBest (e, v) (e', v')
+      | joinLeq v v' = (e', v')
+      | joinLeq v' v = (e, v)
+      | otherwise = (e, v)
 
 showAllEvidence :: forall e v. (Show e, Show v) => Evidence e v -> String
 showAllEvidence (Evidence m) = M.foldMapWithKey showEvidenceLine m
@@ -54,18 +84,20 @@ showAllEvidence (Evidence m) = M.foldMapWithKey showEvidenceLine m
 showEvidenceLine :: (Show e, Show v) => S.Set e -> v -> String
 showEvidenceLine es v = (intercalate ", " . fmap show $ (S.toList es)) <> ":\n -> " <> show v <> "\n"
 
+evidenceWithout :: (Ord e) => e -> Evidence e v -> Evidence e v
+evidenceWithout e (Evidence m) = Evidence (flip M.filterWithKey m $ \es _ -> not $ e `S.member` es)
 
-one = "one" `implies` (Range 1 10) :: Evidence String (Range Int)
-two = "two" `implies` (Range 3 12) :: Evidence String (Range Int)
-
--- test :: (S.Set String, Range Int)
--- test =  showEvidence  . joins $
---   [
---     ("two" `implies` Range 1 10)
---   , ("one" `implies` Range 2 11)
---   , ("three" `implies` Range 3 8)
---   , ("four" `implies` Range 4 10)
---   ]
--- -- expected:
--- -- >>> test
--- -- (fromList ["four","three"],Range {rangeMin = 4, rangeMax = 8})
+one, two, three :: Evidence String (Range Int)
+one = "one" `implies` (Range 1 10)
+two = "two" `implies` (Range 3 12)
+three = "three" `implies` (Range 4 6)
+test :: String
+test =  showAllEvidence . joins $
+  [ one
+  , two
+  , three
+  , one + two
+  ]
+-- expected:
+-- >>> test
+-- (fromList ["four","three"],Range {rangeMin = 4, rangeMax = 8})

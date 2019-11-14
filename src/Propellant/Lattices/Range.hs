@@ -19,6 +19,7 @@ instance Ord n => Lattice (Range n) where
   r /\ EmptyRange = r
 
   -- join
+  Range l h \/ Range l' h' | l > h' || h < l' = EmptyRange
   Range l h \/ Range l' h' = Range (max l l') (min h h')
   InfiniteRange \/ r = r
   r \/ InfiniteRange = r
