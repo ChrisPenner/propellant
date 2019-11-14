@@ -5,7 +5,7 @@
 module Propellant.Propagators.Logic where
 
 import Propellant
-import Propellant.Propagators
+import Propellant.Propagators as P
 import Propellant.Lattices.Evidence
 import Algebra.Lattice
 import Algebra.Lattice.Wide
@@ -56,7 +56,12 @@ distinct (toList -> cells) = for_ pairs $ \(a, b) -> do
         guard (a /= b)
         return (a, b)
 
-switch :: forall a e. (BoundedLattice a, Ord e) => Cell (Evidence e) (Wide Bool) -> Cell (Evidence e) a -> Cell (Evidence e) a -> Builder ()
+switch :: forall a e.
+       (BoundedLattice a, Ord e)
+       => Cell (Evidence e) (Wide Bool)
+       -> Cell (Evidence e) a
+       -> Cell (Evidence e) a
+       -> Builder ()
 switch predicateCell inputCell@Cell{} outputCell@Cell{} = do
     let p :: Propagator = do
         shouldPropagate <- contents predicateCell
@@ -70,7 +75,21 @@ switch predicateCell inputCell@Cell{} outputCell@Cell{} = do
     addNeighbour predicateCell p
     addNeighbour inputCell p
 
+notCell :: Cell f (Wide Bool) -> Cell f (Wide Bool) -> Builder ()
+notCell inp out = do
+    out =! P.map (fmap not) inp
 
+conditional :: forall a e.
+            (BoundedLattice a, Ord e)
+            => Cell (Evidence e) (Wide Bool)
+            -> Cell (Evidence e) a
+            -> Cell (Evidence e) a
+            -> Cell (Evidence e) a
+            -> Builder ()
+conditional control onTrue onFalse output = do
+    output =! switch control onTrue
+    notControl <- store (notCell control)
+    output =! switch notControl onFalse
 
 -- oneOf :: forall e t a. (Ord e, Foldable t, Eq a) => t a -> Cell (Evidence e) (Wide a) -> Builder ()
 -- oneOf (toList -> values) out = do
