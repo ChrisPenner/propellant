@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -6,7 +7,11 @@ module Propellant.Lattices.Evidence where
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Algebra.Lattice
+import Propellant.Lattices.Range
 import Data.Functor.Compose
+import Data.List
+import Algebra.PartialOrd
+import Control.Applicative
 
 data Evidence e v = Evidence (M.Map (S.Set e) v)
                   | NoEvidence
@@ -29,12 +34,21 @@ implies :: e -> v -> Evidence e v
 implies e v = Evidence (M.singleton (S.singleton e) v)
 
 instance (Lattice v, Ord e) => Lattice (Evidence e v) where
-  (/\) = error "Cheating lattice"
+  (/\) = error "Evidence has no Meet"
   TotalContradiction \/ _ = TotalContradiction
   _ \/ TotalContradiction = TotalContradiction
   NoEvidence \/ e = e
   e \/ NoEvidence = e
-  Evidence m \/ Evidence n = Evidence (M.unionWith (\/) m n)
+  m \/ n = powerSet m n
+
+powerSet :: (Ord e, Lattice v) => Evidence e v -> Evidence e v -> Evidence e v
+powerSet TotalContradiction _ = TotalContradiction
+powerSet _ TotalContradiction = TotalContradiction
+powerSet e NoEvidence = e
+powerSet NoEvidence e = e
+powerSet (Evidence a) (Evidence b) = liftA2 (\/) combined combined
+  where
+    combined = Evidence $ M.unionWith (\/) a b
 
 instance (Lattice v, Ord e) => BoundedJoinSemiLattice (Evidence e v) where
   bottom = NoEvidence
@@ -42,17 +56,28 @@ instance (Lattice v, Ord e) => BoundedJoinSemiLattice (Evidence e v) where
 instance (Ord e, Lattice v) => BoundedMeetSemiLattice (Evidence e v) where
   top = TotalContradiction
 
-showEvidence :: forall e v. (Ord e, Eq v, BoundedLattice v) => Evidence e v -> (S.Set e, v)
-showEvidence TotalContradiction = (mempty, top)
-showEvidence NoEvidence = (mempty, bottom)
-showEvidence (Evidence m) = M.foldrWithKey go (mempty, bottom) m
-  where
-    go :: S.Set e -> v -> (S.Set e, v) -> (S.Set e, v)
-    go k v e@(ks, vs)
-      -- This element doesn't add any info
-      | joinLeq v vs = e
-      | joinLeq vs v = (k, v)
-      | otherwise = (S.union k ks, v \/ vs)
+partialCompare :: (PartialOrd a) => a -> a -> Ordering
+partialCompare a b
+  | not (comparable a  b) = EQ
+  | leq a b = LT
+  | otherwise = GT
+
+showBestEvidence :: (Show e, Show v, Ord e, PartialOrd v) => Evidence e v -> String
+showBestEvidence (Evidence m) = uncurry showEvidenceLine . maximumBy partialCompare $ M.toList m
+showBestEvidence NoEvidence = "No Evidence"
+showBestEvidence TotalContradiction = "Contradiction!"
+
+showAllEvidence :: forall e v. (Show e, Show v) => Evidence e v -> String
+showAllEvidence (Evidence m) = M.foldMapWithKey showEvidenceLine m
+showAllEvidence NoEvidence = "No Evidence"
+showAllEvidence TotalContradiction = "Contradiction!"
+
+showEvidenceLine :: (Show e, Show v) => S.Set e -> v -> String
+showEvidenceLine es v = (intercalate ", " . fmap show $ (S.toList es)) <> ":\n -> " <> show v <> "\n"
+
+
+one = "one" `implies` (Range 1 10) :: Evidence String (Range Int)
+two = "two" `implies` (Range 3 12) :: Evidence String (Range Int)
 
 -- test :: (S.Set String, Range Int)
 -- test =  showEvidence  . joins $

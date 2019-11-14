@@ -46,8 +46,12 @@ main = do
         constant ("shadow" `implies` Range 54.9 55.1) buildingShadow
         constant ("blueprints" `implies` Range 54.8 55) buildingShadow
         constant ("shadow" `implies` Range 0.3 0.32) barometerHeight
-        constant ("measurement" `implies` Range 0.31 0.32) barometerHeight
+        -- constant ("measurement" `implies` Range 0.31 0.32) barometerHeight
         constant ("shadow" `implies` Range 0.36 0.37) barometerShadow
         return buildingHeight
     height <- readCell buildingHeight
-    print (fmap (fromRational @Double) <$> showEvidence height)
+    let floatHeight = (fmap . fmap) (fromRational @Double) height
+    -- print (fmap (fromRational @Double) <$> showEvidence height)
+    putStrLn $ showAllEvidence floatHeight
+    putStrLn $ showBestEvidence floatHeight
+    -- print $ height
