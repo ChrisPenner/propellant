@@ -1,12 +1,12 @@
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Examples.Barometer where
 
 import Propellant
 import Propellant.Propagators
 import Propellant.Lattices.Evidence
 import Propellant.Lattices.Range
-import Propellant.Lattices.Num
-import Algebra.Lattice.Levitated
+import Propellant.Lattices.Orphans
 import Text.Printf
 import qualified Data.Set as S
 
@@ -36,8 +36,9 @@ similarTriangles (x1, y1) (x2, y2) = do
 
 main :: IO ()
 main = do
-    buildingHeight <- quiesce $ do
-        barometerHeight <- (emptyCell :: Builder (Cell (Evidence String (Range (Levitated Rational)))))
+    (buildingHeight :: Cell (Evidence String (Range Rational)))
+        <- quiesce $ do
+        barometerHeight <- emptyCell
         barometerShadow <- emptyCell
         buildingHeight <- emptyCell
         buildingShadow <- emptyCell
@@ -49,4 +50,4 @@ main = do
         constant ("shadow" `implies` Range 0.36 0.37) barometerShadow
         return buildingHeight
     height <- readCell buildingHeight
-    print ((fmap . fmap) (fromRational @Double) <$> showEvidence height)
+    print (fmap (fromRational @Double) <$> showEvidence height)

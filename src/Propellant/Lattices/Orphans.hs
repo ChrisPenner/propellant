@@ -1,11 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Propellant.Lattices.Num where
+module Propellant.Lattices.Orphans where
 
+import Algebra.Lattice
 import Algebra.Lattice.Wide
 import Algebra.Lattice.Levitated as L
 import Propellant.Lattices.Evidence
 import Control.Applicative
+import Data.Functor.Compose
 
 instance Num n => Num (Wide n) where
   (+) = liftA2 (+)
@@ -46,3 +48,8 @@ instance (Ord e, Monoid e, Num n) => Num (Evidence e n) where
 instance (Ord e, Monoid e, Fractional n) => Fractional (Evidence e n) where
   fromRational = pure . fromRational
   recip = fmap recip
+
+
+instance Lattice (f (g a)) => Lattice (Compose f g a) where
+  Compose a \/ Compose b = Compose (a \/ b)
+  Compose a /\ Compose b = Compose (a /\ b)
