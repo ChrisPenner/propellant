@@ -14,17 +14,11 @@ import Algebra.PartialOrd
 import Control.Applicative
 
 data Evidence e v = Evidence (M.Map (S.Set e) v)
-                  | NoEvidence
-                  | TotalContradiction
   deriving (Show, Eq, Functor)
 
 instance (Ord e) => Applicative (Evidence e) where
   pure v = Evidence (M.singleton mempty v)
   (<*>) :: forall a b. Evidence e (a -> b) -> Evidence e a -> Evidence e b
-  TotalContradiction <*> _ = TotalContradiction
-  _ <*> TotalContradiction = TotalContradiction
-  _ <*> NoEvidence = NoEvidence
-  NoEvidence <*> _ = NoEvidence
   Evidence f <*> Evidence a = Evidence (M.fromList results)
     where
       results :: [(S.Set e, b)]
@@ -35,26 +29,15 @@ implies e v = Evidence (M.singleton (S.singleton e) v)
 
 instance (Lattice v, Ord e) => Lattice (Evidence e v) where
   (/\) = error "Evidence has no Meet"
-  TotalContradiction \/ _ = TotalContradiction
-  _ \/ TotalContradiction = TotalContradiction
-  NoEvidence \/ e = e
-  e \/ NoEvidence = e
   m \/ n = powerSet m n
 
 powerSet :: (Ord e, Lattice v) => Evidence e v -> Evidence e v -> Evidence e v
-powerSet TotalContradiction _ = TotalContradiction
-powerSet _ TotalContradiction = TotalContradiction
-powerSet e NoEvidence = e
-powerSet NoEvidence e = e
 powerSet (Evidence a) (Evidence b) = liftA2 (\/) combined combined
   where
     combined = Evidence $ M.unionWith (\/) a b
 
 instance (Lattice v, Ord e) => BoundedJoinSemiLattice (Evidence e v) where
-  bottom = NoEvidence
-
-instance (Ord e, Lattice v) => BoundedMeetSemiLattice (Evidence e v) where
-  top = TotalContradiction
+  bottom = Evidence mempty
 
 partialCompare :: (PartialOrd a) => a -> a -> Ordering
 partialCompare a b
@@ -64,13 +47,9 @@ partialCompare a b
 
 showBestEvidence :: (Show e, Show v, Ord e, PartialOrd v) => Evidence e v -> String
 showBestEvidence (Evidence m) = uncurry showEvidenceLine . maximumBy partialCompare $ M.toList m
-showBestEvidence NoEvidence = "No Evidence"
-showBestEvidence TotalContradiction = "Contradiction!"
 
 showAllEvidence :: forall e v. (Show e, Show v) => Evidence e v -> String
 showAllEvidence (Evidence m) = M.foldMapWithKey showEvidenceLine m
-showAllEvidence NoEvidence = "No Evidence"
-showAllEvidence TotalContradiction = "Contradiction!"
 
 showEvidenceLine :: (Show e, Show v) => S.Set e -> v -> String
 showEvidenceLine es v = (intercalate ", " . fmap show $ (S.toList es)) <> ":\n -> " <> show v <> "\n"
