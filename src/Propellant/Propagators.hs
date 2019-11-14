@@ -5,8 +5,9 @@ module Propellant.Propagators where
 import Propellant
 import Control.Applicative
 import Algebra.Lattice
+import Control.Monad
 
-pBinOp :: Info i => (i -> i -> i) -> Cell i -> Cell i -> Cell i -> Builder ()
+pBinOp :: (Info c) => (a -> b -> c) -> Cell a -> Cell b -> Cell c -> Builder ()
 pBinOp f inA inB out = do
     addNeighbour inA p
     addNeighbour inB p
@@ -15,6 +16,9 @@ pBinOp f inA inB out = do
     p = do
         result <- liftA2 f (contents inA) (contents inB)
         addContent result out
+
+equalizer :: (Info a) => Cell a -> Cell a -> Cell Bool -> Builder ()
+equalizer a b c = pBinOp (==) a b c
 
 adder :: (Num n, Info n) => Cell n -> Cell n -> Cell n -> Builder ()
 adder a b c = pBinOp (+) a b c
@@ -58,18 +62,6 @@ div inA inB total = do
     multiplier inB total inA
     divider inA total inB
 
-eq :: (Info a) => Cell a -> Cell a -> Builder ()
-eq inA inB = do
-    addNeighbour inA p
-    addNeighbour inB p
-  where
-    p :: Propagator
-    p = do
-        a <- contents inA
-        b <- contents inB
-        addContent a inB
-        addContent b inA
-
 map :: (Info b) => (a -> b) -> Cell a -> Cell b -> Builder ()
 map f inp out = do
     addNeighbour inp p
@@ -93,9 +85,6 @@ map f inp out = do
 
 (=!) :: Cell a -> (Cell a -> Builder ()) -> Builder ()
 (=!) a f = (f a)
-
-(==!) :: (Info a) => Cell a -> Cell a -> Builder ()
-(==!) = eq
 
 store :: Info a => (Cell a -> Builder ()) -> Builder (Cell a)
 store f = do
