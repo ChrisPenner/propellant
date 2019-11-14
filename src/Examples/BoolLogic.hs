@@ -30,14 +30,31 @@ main = do
     putStrLn $ "A = B"
     putStrLn $ showAllEvidence areEq
 
-testSwitch :: IO ()
-testSwitch = do
+-- testSwitch :: IO ()
+-- testSwitch = do
+--     out <- quiesce $ do
+--         input <- emptyCell @(Evidence String)
+--         control <- emptyCell
+--         output <- emptyCell
+--         switch control input output
+--         constant ("four" `implies` Middle (4 :: Int)) input
+--         -- constant' (10 :: Wide Int) input
+--         constant ("switcher" `implies` Middle True) control
+--         return (output)
+--     o <- readCell out
+--     putStrLn $ showAllEvidence o
+
+
+testConditional :: IO ()
+testConditional = do
     out <- quiesce $ do
-        input <- emptyCell @(Evidence String)
+        a <- emptyCell @(Evidence String)
+        b <- emptyCell @(Evidence String)
         control <- emptyCell
         output <- emptyCell
-        switch control input output
-        constant ("four" `implies` Middle (4 :: Int)) input
+        conditional control a b output
+        constant ("a" `implies` Middle (4 :: Int)) a
+        constant ("b" `implies` Middle (10 :: Int)) b
         -- constant' (10 :: Wide Int) input
         constant ("switcher" `implies` Middle True) control
         return (output)
