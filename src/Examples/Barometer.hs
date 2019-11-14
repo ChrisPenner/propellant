@@ -6,7 +6,7 @@ import Propellant
 import Propellant.Propagators
 import Propellant.Lattices.Evidence
 import Propellant.Lattices.Range
-import Propellant.Lattices.Orphans
+import Propellant.Lattices.Orphans ()
 import Text.Printf
 import qualified Data.Set as S
 
@@ -22,9 +22,9 @@ import qualified Data.Set as S
 -- (product g t^2 gt^2)
 --     (product one-half gt^2 h)))
 
-similarTriangles :: (Fractional n, Info n)
-                 => (Cell n, Cell n) -- ^ First triangle (b, h)
-                 -> (Cell n, Cell n) -- ^ Second triangle (b, h)
+similarTriangles :: (Fractional n, Info f n)
+                 => (Cell f n, Cell f n) -- ^ First triangle (b, h)
+                 -> (Cell f n, Cell f n) -- ^ Second triangle (b, h)
                  -> Builder ()
 similarTriangles (x1, y1) (x2, y2) = do
     ratio1 <- store (x1 /! y1)
@@ -36,7 +36,7 @@ similarTriangles (x1, y1) (x2, y2) = do
 
 main :: IO ()
 main = do
-    (buildingHeight :: Cell (Evidence String (Range Rational)))
+    (buildingHeight :: Cell (Evidence String) (Range Rational))
         <- quiesce $ do
         barometerHeight <- emptyCell
         barometerShadow <- emptyCell

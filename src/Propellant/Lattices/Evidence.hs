@@ -17,6 +17,13 @@ import Control.Applicative
 data Evidence e v = Evidence (M.Map (S.Set e) v)
   deriving (Show, Eq, Functor)
 
+instance (Lattice v, Ord e, Eq v) => Semigroup (Evidence e v) where
+  (<>) = (\/)
+
+instance (Lattice v, Ord e, Eq v) => Monoid (Evidence e v) where
+  mempty = bottom
+
+
 instance (Ord e) => Applicative (Evidence e) where
   pure v = Evidence (M.singleton mempty v)
   (<*>) :: forall a b. Evidence e (a -> b) -> Evidence e a -> Evidence e b
@@ -24,6 +31,19 @@ instance (Ord e) => Applicative (Evidence e) where
     where
       results :: [(S.Set e, b)]
       results = getCompose $ Compose (M.toList f) <*> Compose (M.toList a)
+
+-- A Monad over evidence; not a proper monad because of Lattice requirement on contents
+(>>~) :: forall a b e. (Ord e, Lattice b, Eq b) => Evidence e a -> (a -> Evidence e b) -> Evidence e b
+ev >>~ f = eJoin $ fmap f ev
+
+eJoin :: (Lattice a, Ord e, Eq a) => Evidence e (Evidence e a) -> Evidence e a
+eJoin (Evidence m) = foldMap flatten . M.toList $ m
+  where
+    flatten :: Ord e => (S.Set e, Evidence e b) -> Evidence e b
+    flatten (e, Evidence n) = Evidence $ M.mapKeys (e <>) n
+
+
+-- ([("a", 1), ("b", 2)])
 
 implies :: e -> v -> Evidence e v
 implies e v = Evidence (M.singleton (S.singleton e) v)
