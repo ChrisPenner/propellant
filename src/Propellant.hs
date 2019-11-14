@@ -22,7 +22,11 @@ data Cell f i where
             , cellDependents :: TVar [Propagator]
             } -> Cell f i
 
-type Info f i = (BoundedJoinSemiLattice (f i), Eq (f i), Applicative f)
+-- | Pointer equality
+instance Eq (Cell f i) where
+  Cell c _ == Cell c' _ = c == c'
+
+type Info f i = (BoundedJoinSemiLattice (f i), BoundedJoinSemiLattice i, Eq (f i), Eq i, Applicative f)
 type Scheduler = TQueue Propagator
 newtype Builder a = Builder {runBuilder :: ReaderT Scheduler STM a}
   deriving newtype (Functor, Applicative, Monad, MonadReader Scheduler)
