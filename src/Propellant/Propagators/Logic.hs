@@ -12,9 +12,8 @@ import Algebra.Lattice.Wide
 import Control.Applicative
 import Control.Monad
 import Data.Foldable
-import Data.Traversable
 
-(=?) :: forall e a. (Ord e, Eq a) => Cell (Evidence e) (Wide a) -> Cell (Evidence e) (Wide a) -> Cell (Evidence e) (Wide Bool) -> Builder ()
+(=?) :: forall e a. (Ord e, Eq a) => Cell e (Wide a) -> Cell e (Wide a) -> Cell e (Wide Bool) -> Builder ()
 (=?) inA@Cell{} inB@Cell{} out@Cell{} = do
     let p :: Propagator = do
         a <- contents inA
@@ -44,7 +43,7 @@ forbid :: Cell f (Wide Bool) -> Builder ()
 forbid c@Cell{} = do
     constant' (pure False) c
 
-distinct :: (Ord e, Eq a, Foldable t) => t (Cell (Evidence e) (Wide a)) -> Builder ()
+distinct :: (Ord e, Eq a, Foldable t) => t (Cell e (Wide a)) -> Builder ()
 distinct (toList -> cells) = for_ pairs $ \(a, b) -> do
     x <- emptyCell
     x =! (a =? b)
@@ -58,9 +57,9 @@ distinct (toList -> cells) = for_ pairs $ \(a, b) -> do
 
 switch :: forall a e.
        (BoundedLattice a, Ord e)
-       => Cell (Evidence e) (Wide Bool)
-       -> Cell (Evidence e) a
-       -> Cell (Evidence e) a
+       => Cell e (Wide Bool)
+       -> Cell e a
+       -> Cell e a
        -> Builder ()
 switch predicateCell inputCell@Cell{} outputCell@Cell{} = do
     let p :: Propagator = do
@@ -81,22 +80,22 @@ notCell inp out = do
 
 conditional :: forall a e.
             (BoundedLattice a, Ord e)
-            => Cell (Evidence e) (Wide Bool)
-            -> Cell (Evidence e) a
-            -> Cell (Evidence e) a
-            -> Cell (Evidence e) a
+            => Cell e (Wide Bool)
+            -> Cell e a
+            -> Cell e a
+            -> Cell e a
             -> Builder ()
 conditional control onTrue onFalse output = do
     output =! switch control onTrue
     notControl <- store (notCell control)
     output =! switch notControl onFalse
 
--- oneOf :: forall e t a. (Ord e, Foldable t, Eq a) => t a -> Cell (Evidence e) (Wide a) -> Builder ()
+-- oneOf :: forall e t a. (Ord e, Foldable t, Eq a) => t a -> Cell e (Wide a) -> Builder ()
 -- oneOf (toList -> values) out = do
 --     cells <- for values $ \a -> do
---         newCell $ pure @(Evidence e) (Middle a)
+--         newCell $ pure @e (Middle a)
 --     oneOfTheCells cells out
 
 
--- oneOfTheCells :: Foldable t => t (Cell (Evidence e) a) -> Cell (Evidence e) a -> Builder ()
+-- oneOfTheCells :: Foldable t => t (Cell e a) -> Cell e a -> Builder ()
 -- oneOfTheCells = undefined

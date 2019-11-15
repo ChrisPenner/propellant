@@ -12,9 +12,9 @@ import Algebra.Lattice.Wide
 main :: IO ()
 main = do
     (cellA, cellB, aEqB) <- quiesce $ do
-        cellA <- emptyCell @(Evidence String) @(Wide Int)
+        cellA <- emptyCell @String @(Wide Int)
         cellB <- emptyCell
-        aEqB <- emptyCell @(Evidence String) @(Wide Bool)
+        aEqB <- emptyCell @String @(Wide Bool)
         aEqB =! (cellA =? cellB)
         -- constant' (3 :: Wide Int) cellA
         constant' 4 cellB
@@ -48,14 +48,13 @@ main = do
 testConditional :: IO ()
 testConditional = do
     out <- quiesce $ do
-        a <- emptyCell @(Evidence String)
-        b <- emptyCell @(Evidence String)
+        a <- emptyCell @String
+        b <- emptyCell @String
         control <- emptyCell
         output <- emptyCell
         conditional control a b output
         constant ("a" `implies` Middle (4 :: Int)) a
         constant ("b" `implies` Middle (10 :: Int)) b
-        -- constant' (10 :: Wide Int) input
         constant ("switcher" `implies` Middle True) control
         return (output)
     o <- readCell out

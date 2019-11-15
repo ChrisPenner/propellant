@@ -15,18 +15,19 @@ import Algebra.Lattice
 import Control.Monad.Reader
 import Control.Applicative
 import Data.Foldable
+import Propellant.Lattices.Evidence
 
-data Cell f i where
-    Cell :: Info f i
-         => { cellContent    :: TVar (f i)
+data Cell e i where
+    Cell :: Info e i
+         => { cellContent    :: TVar (Evidence e i)
             , cellDependents :: TVar [Propagator]
-            } -> Cell f i
+            } -> Cell e i
 
 -- | Pointer equality
-instance Eq (Cell f i) where
+instance Eq (Cell e i) where
   Cell c _ == Cell c' _ = c == c'
 
-type Info f i = (BoundedJoinSemiLattice (f i), BoundedJoinSemiLattice i, Eq (f i), Eq i, Applicative f)
+type Info e i = (Ord e, Eq i, Lattice i)
 type Scheduler = TQueue Propagator
 newtype Builder a = Builder {runBuilder :: ReaderT Scheduler STM a}
   deriving newtype (Functor, Applicative, Monad, MonadReader Scheduler)
@@ -44,25 +45,25 @@ instance Monoid m => Monoid (Prop m) where
 
 makeLenses ''Cell
 
-contents :: Cell f i -> Prop (f i)
+contents :: Cell e i -> Prop (Evidence e i)
 contents  = liftSTMP . readTVar . cellContent
 
--- newCell :: i -> IO (Cell f i)
--- newCell i = Cell f <$> newTVarIO i <*> newTVarIO []
+-- newCell :: i -> IO (Cell e i)
+-- newCell i = Cell e <$> newTVarIO i <*> newTVarIO []
 
-newCell :: forall f i. _ => f i -> Builder (Cell f i)
+newCell :: Info e i => Evidence e i -> Builder (Cell e i)
 newCell i = Cell <$> liftSTMB (newTVar i) <*> liftSTMB (newTVar [])
 
-emptyCell :: _ => Builder (Cell f i)
+emptyCell :: Info e i => Builder (Cell e i)
 emptyCell = newCell bottom
 
--- newCellT :: _ => i -> STM (Cell f i)
+-- newCellT :: _ => i -> STM (Cell e i)
 -- newCellT i = Cell <$> newTVar i <*> newTVar []
 
-readCell :: Cell f i -> IO (f i)
+readCell :: Cell e i -> IO (Evidence e i)
 readCell = readTVarIO . cellContent
 
--- readCellT :: Cell f i -> STM i
+-- readCellT :: Cell e i -> STM i
 -- readCellT = readTVar . cellContent
 
 liftSTMP :: STM a -> Prop a
@@ -72,7 +73,7 @@ liftSTMB :: STM a -> Builder a
 liftSTMB = Builder . lift
 
 
-addContent :: (Eq (f i)) => f i -> Cell f i -> Propagator
+addContent :: Evidence e i -> Cell e i -> Propagator
 addContent info cell@(Cell c _) = do
     before <- liftSTMP $ readTVar c
     let after = before \/ info
@@ -80,7 +81,7 @@ addContent info cell@(Cell c _) = do
         liftSTMP $ writeTVar c after
         propagate cell
 
-propagate :: Cell f i -> Propagator
+propagate :: Cell e i -> Propagator
 propagate (Cell _ depsT) = do
     deps <- liftSTMP $ readTVar depsT
     for_ deps (Prop . schedule')
@@ -93,7 +94,7 @@ schedule' m = do
     sched <- ask
     lift $ writeTQueue sched m
 
-addNeighbour :: Cell f i -> Propagator -> Builder ()
+addNeighbour :: Cell e i -> Propagator -> Builder ()
 addNeighbour cell prop  = do
     Builder . lift $ modifyTVar (cellDependents cell) (prop:)
     scheduleB prop

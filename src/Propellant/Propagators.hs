@@ -4,6 +4,7 @@ module Propellant.Propagators where
 
 import Propellant
 import Control.Applicative
+import Propellant.Lattices.Evidence
 
 pBinOp :: (a -> b -> c) -> Cell f a -> Cell f b -> Cell f c -> Builder ()
 pBinOp f inA@Cell{} inB@Cell{} out@Cell{} = do
@@ -30,7 +31,7 @@ multiplier = pBinOp (*)
 divider :: (Fractional n) => Cell f n -> Cell f n -> Cell f n -> Builder ()
 divider = pBinOp (/)
 
-constant :: Info f i => f i -> Cell f i -> Builder ()
+constant :: Evidence e i -> Cell e i -> Builder ()
 constant i cell = scheduleB $ addContent i cell
 
 constant' :: Info f i => i -> Cell f i -> Builder ()
@@ -96,12 +97,12 @@ store f = do
 (%~!) :: Cell f a -> (a -> b) -> Cell f b -> Builder ()
 (%~!) a f out = Propellant.Propagators.map f a out
 
-subscribe :: Cell f a -> (f a -> Prop ()) -> Builder ()
+subscribe :: Cell e a -> (Evidence e a -> Prop ()) -> Builder ()
 subscribe c f = do
     addNeighbour c p
   where
     p :: Propagator
     p = contents c >>= f
 
-(!->) :: Cell f a -> (f a -> Prop ()) -> Builder ()
+(!->) :: Cell e a -> (Evidence e a -> Prop ()) -> Builder ()
 (!->) = subscribe
