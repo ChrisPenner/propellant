@@ -1,46 +1,37 @@
 module Examples.Temperature where
 
 import Propellant
-import Propellant.Propagators as P
-import Propellant.Lattices.Wide ()
-import Algebra.Lattice.Wide as W
 import Text.Printf
 
-f2c :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
+f2c :: Cell Rational -> Cell Rational -> Builder ()
 f2c fahrenheit celsius = do
-    thirtyTwo <- newCell (pure 32)
+    thirtyTwo <- newCell 32
     fminus32 <- emptyCell
-    five  <- newCell (pure 5)
+    five  <- newCell 5
     cTimesNine <- emptyCell
-    nine  <- newCell (pure 9)
-    fminus32 =! (fahrenheit -! thirtyTwo)
-    cTimesNine =! (fminus32 *! five)
-    celsius =! (cTimesNine /! nine)
+    nine  <- newCell 9
+    fminus32 =! (fahrenheit `bisub` thirtyTwo)
+    cTimesNine =! (fminus32 `bimult` five)
+    celsius =! (cTimesNine `bidiv` nine)
 
-f2c' :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
+f2c' :: Cell Rational -> Cell Rational -> Builder ()
 f2c' fahrenheit celsius = do
-    thirtyTwo <- store $ constant' 32
-    five  <- store $ constant' 5
-    nine  <- store $ constant' 9
-    fminus32 <- store $ fahrenheit -! thirtyTwo
-    cTimesNine <- store $ fminus32 *! five
-    celsius =! (cTimesNine /! nine)
-
-f2c'' :: Cell (Wide Rational) -> Cell (Wide Rational) -> Builder ()
-f2c'' fahrenheit celsius = do
-    fahrenheit !-> \f ->
-        addContent ((f - 32) * (5 / 9)) celsius
-    celsius !-> \c ->
-        addContent ((c * (9 / 5)) + 32) fahrenheit
+    thirtyTwo <- store $ constant 32
+    five  <- store $ constant 5
+    nine  <- store $ constant 9
+    fminus32 <- store $ fahrenheit `bisub` thirtyTwo
+    cTimesNine <- store $ fminus32 `bimult` five
+    celsius =! (cTimesNine `bidiv` nine)
 
 main :: IO ()
 main = do
     (celsius, fahrenheit) <- quiesce $ do
-        fahrenheit <- newCell W.Bottom
-        celsius <- newCell W.Bottom
-        f2c'' fahrenheit celsius
-        constant' (12 :: Rational) celsius
+        fahrenheit <- emptyCell
+        celsius <- emptyCell
+        f2c' fahrenheit celsius
+        -- constant (100 :: Rational) celsius
+        constant (33 :: Rational) fahrenheit
         return (celsius, fahrenheit)
-    Middle c <- readCell celsius
-    Middle f <- readCell fahrenheit
+    Just c <- readCell celsius
+    Just f <- readCell fahrenheit
     printf "%f Fahrenheit = %f Celsius\n" (fromRational f :: Float) (fromRational c :: Float)
