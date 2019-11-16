@@ -14,7 +14,23 @@ data Merged a =
         Contradiction
       | NoChange a
       | Changed a
-  deriving (Show, Eq, Functor)
+  deriving (Show, Eq, Functor, Ord)
+
+instance Applicative Merged where
+  pure = NoChange
+  Contradiction <*> _ = Contradiction
+  _ <*> Contradiction = Contradiction
+  NoChange f <*> NoChange a = NoChange $ f a
+  Changed f <*> NoChange a = Changed $ f a
+  NoChange f <*> Changed a = Changed $ f a
+  Changed f <*> Changed a = Changed $ f a
+
+instance Monad Merged where
+  return = pure
+  Contradiction >>= _f = Contradiction
+  Changed a >>= f = f a
+  NoChange a >>= f = f a
+
 
 
 eqMerge :: Eq a => a -> a -> Merged a
