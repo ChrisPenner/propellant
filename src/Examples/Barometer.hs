@@ -64,14 +64,15 @@ main = do
                         buildingHeight <- emptyCell
                         buildingShadow <- emptyCell
                         similarTriangles (barometerShadow, barometerHeight) (buildingShadow, buildingHeight)
-                        constant (I (54.9 :: Rational) 55.1) buildingShadow
-                        constant (I 54.8 55) buildingShadow
-                        constant (I 0.3 0.32) barometerHeight
+                        constant ("shadow" `implies` I (54.9 :: Double) 55.1) buildingShadow
+                        constant ("stuff" `implies` I 54.8 55) buildingShadow
+                        constant ("eyes" `implies` I 0.3 0.32) barometerHeight
                         -- constant (I 0.31 0.32) barometerHeight
-                        constant (I 0.36 0.37) barometerShadow
-                        constant (I 44 50) buildingHeight
-                        constant (I 45 45) buildingHeight
-                        return buildingShadow
+                        constant ("shadow" `implies` I 0.36 0.37) barometerShadow
+                        constant ("super" `implies` I 45 46) buildingHeight
+                        constant ("shadow" `implies` I 44 45) buildingHeight
+                        -- constant (I 45 45) buildingHeight
+                        return buildingHeight
     height <- readCell buildingHeight
     print height
 

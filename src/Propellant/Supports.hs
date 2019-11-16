@@ -11,12 +11,13 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 import Data.Functor.Compose
 import Control.Applicative
+import Control.Monad
 
 data Evidence e a = Evidence (M.Map (S.Set e) (Merged a))
   deriving (Show, Eq, Functor)
 
 instance (Ord e, Mergeable a) => Semigroup (Evidence e a) where
-  (<>) = accumulateEvidence
+  a <> b = superSet $ accumulateEvidence a b
 
 -- Can make this smarter by ignoring combinations which aren't more precise than their
 -- components
@@ -29,6 +30,14 @@ accumulateEvidence (Evidence a) (Evidence b) = Evidence combined -- clean combin
         x <- mx
         y <- my
         merge x y
+
+superSet :: (Ord e, Mergeable v) => Evidence e v -> Evidence e v
+superSet (Evidence m) = Evidence . M.fromList $ do
+    (k, v) <- M.toList m
+    (k', v') <- M.toList m
+    case join (liftA2 merge v v') of
+        Contradiction -> empty
+        a -> return (k <> k', a)
 
 instance (Ord e, Mergeable a) => Monoid (Evidence e a) where
   mempty = Evidence mempty
@@ -43,7 +52,7 @@ instance (Ord e) => Applicative (Evidence e) where
 
 instance (Ord e, Eq a, Mergeable a) => Mergeable (Evidence e a) where
   merge old new =
-      let merged = accumulateEvidence old new
+      let merged = old <> new
        in if merged == old then NoChange merged
                            else Changed merged
 
