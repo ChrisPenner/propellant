@@ -37,7 +37,7 @@ divider :: (Fractional n) => Cell n -> Cell n -> Cell n -> Builder ()
 divider = liftP2 (/)
 
 constant :: a -> Cell a -> Builder ()
-constant i cell = schedule $ addContent i cell
+constant a cell = schedule $ addContent a cell
 
 bisum :: (Num n) => Cell n -> Cell n -> Cell n -> Builder ()
 bisum inA inB total = do

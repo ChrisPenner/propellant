@@ -8,15 +8,10 @@ data Range n = Range {rangeMin :: n, rangeMax :: n}
   deriving (Show, Eq, Functor)
 
 instance Ord n => Mergeable (Range n) where
-  -- meet
   r@(Range l h) `merge` r'@(Range l' h')
     | r == r' = NoChange r'
-    | otherwise = Changed $ Range (min l l') (max h h')
-
--- instance (Eq n, Ord n) => PartialOrd (Range n) where
---   leq (Range l h) (Range l' h')
---     | l' >= l && h' <= h = True
---     | otherwise = False
+    | h < l' || h' < l = Contradiction
+    | otherwise = Changed $ Range (max l l') (min h h')
 
 instance Num n => Num (Range n) where
   Range min1 max1 + Range min2 max2 = Range (min1 + min2) (max1 + max2)

@@ -5,6 +5,7 @@ module Examples.Barometer where
 import Propellant
 import Text.Printf
 import qualified Data.Set as S
+import Numeric.Interval.Internal
 
 -- fallDuration :: Fractional n => Cell -> Cell -> Builder ()
 -- fallDuration time height = do
@@ -57,20 +58,33 @@ similarTriangles (x1, y1) (x2, y2) = do
 
 main :: IO ()
 main = do
-    (buildingHeight :: Cell (Range Double))
-        <- quiesce $ do
-        barometerHeight <- emptyCell
-        barometerShadow <- emptyCell
-        buildingHeight <- emptyCell
-        buildingShadow <- emptyCell
-        similarTriangles (barometerShadow, barometerHeight) (buildingShadow, buildingHeight)
-        constant (Range 54.9 55.1) buildingShadow
-        constant (Range 54.8 55) buildingShadow
-        constant (Range 0.3 0.32) barometerHeight
-        -- constant (Range 0.31 0.32) barometerHeight
-        constant (Range 0.36 0.37) barometerShadow
-        constant (Range 46 50) buildingHeight
-        constant (Range 45 45) buildingHeight
-        return buildingHeight
+    buildingHeight <- quiesce $ do
+                        barometerHeight <- emptyCell
+                        barometerShadow <- emptyCell
+                        buildingHeight <- emptyCell
+                        buildingShadow <- emptyCell
+                        similarTriangles (barometerShadow, barometerHeight) (buildingShadow, buildingHeight)
+                        constant (I (54.9 :: Rational) 55.1) buildingShadow
+                        constant (I 54.8 55) buildingShadow
+                        constant (I 0.3 0.32) barometerHeight
+                        -- constant (I 0.31 0.32) barometerHeight
+                        constant (I 0.36 0.37) barometerShadow
+                        constant (I 44 50) buildingHeight
+                        constant (I 45 45) buildingHeight
+                        return buildingShadow
     height <- readCell buildingHeight
     print height
+
+-- main :: IO ()
+-- main = do
+--     (result :: Cell Double)
+--         <- quiesce $ do
+--             five <- newCell (5 :: Double)
+--             ten <- newCell 10
+--             result <- store (five `bidiv` ten)
+--             result2 <- store (result `bidiv` five)
+--             constant 6 result2
+--             return result2
+--     height <- readCell result
+--     print height
+

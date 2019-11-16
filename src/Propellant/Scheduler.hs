@@ -27,7 +27,6 @@ drain sched = do
                 return NotDone
     case r of
         NotDone -> do
-            -- print lab
             drain sched
         Done -> return ()
 
