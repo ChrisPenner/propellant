@@ -59,3 +59,9 @@ using :: Cell a -> (a -> Propagator) -> Propagator
 using c f = contents c >>= \case
   Nothing -> return ()
   Just a -> f a
+
+usingWhen :: Cell a -> (a -> Bool) -> (a -> Propagator) -> Propagator
+usingWhen c predicate f = 
+    using c $ \a -> if predicate a
+        then f a
+        else return ()

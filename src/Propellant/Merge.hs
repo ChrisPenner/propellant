@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DefaultSignatures #-}
 module Propellant.Merge where
 
 import Data.Ratio
@@ -6,6 +7,8 @@ import Numeric.Interval.Internal
 
 class Mergeable a where
   merge :: a -> a -> Merged a
+  default merge :: (Eq a) => a -> a -> Merged a
+  merge = eqMerge
 
 data Merged a =
         Contradiction
@@ -19,7 +22,7 @@ eqMerge a b | a == b = NoChange a
             | otherwise = Contradiction
 
 instance Mergeable Int where
-  merge = eqMerge
+instance Mergeable Bool where
 
 instance Mergeable Float where
     merge a b

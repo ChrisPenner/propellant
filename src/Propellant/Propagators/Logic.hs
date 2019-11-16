@@ -5,95 +5,67 @@
 module Propellant.Propagators.Logic where
 
 import Propellant
-import Propellant.Propagators as P
-import Propellant.Lattices.Evidence
-import Algebra.Lattice
-import Algebra.Lattice.Wide
-import Control.Applicative
 import Control.Monad
-import Data.Foldable
 
-(=?) :: forall e a. (Ord e, Eq a) => Cell e (Wide a) -> Cell e (Wide a) -> Cell e (Wide Bool) -> Builder ()
-(=?) inA@Cell{} inB@Cell{} out@Cell{} = do
+(=?) :: Eq a => Cell a -> Cell a -> Cell Bool -> Builder ()
+(=?) inA inB out = do
     let p :: Propagator = do
-        a <- contents inA
-        b <- contents inB
-        addContent (liftA2 (liftA2 (==)) a b) out
-        equal <- contents out
-        let rA :: Evidence e (Wide a) = equal >>~ \case
-                        Bottom -> bottom
-                        Top -> pure top -- ??
-                        Middle True -> a
-                        Middle False -> bottom
-        let rB :: Evidence e (Wide a) = equal >>~ \case
-                        Bottom -> bottom
-                        Top -> pure top -- ??
-                        Middle True -> b
-                        Middle False -> bottom
-        addContent rA inB
-        addContent rB inA
+        using inA $ \a -> using inB $ \b -> do
+            addContent (a == b) out
+        usingWhen out id $ \_areEqual -> do
+            using inA $ \a -> addContent a inB
+            using inB $ \b -> addContent b inA
     addNeighbour inA p
     addNeighbour inB p
 
-require :: Cell f (Wide Bool) -> Builder ()
-require c@Cell{} = do
-    constant' (pure True) c
+require :: Cell Bool -> Builder ()
+require = constant True
 
-forbid :: Cell f (Wide Bool) -> Builder ()
-forbid c@Cell{} = do
-    constant' (pure False) c
+forbid :: Cell Bool -> Builder ()
+forbid = constant False
 
-distinct :: (Ord e, Eq a, Foldable t) => t (Cell e (Wide a)) -> Builder ()
-distinct (toList -> cells) = for_ pairs $ \(a, b) -> do
-    x <- emptyCell
-    x =! (a =? b)
-    forbid x
-  where
-    pairs = do
-        a <- cells
-        b <- cells
-        guard (a /= b)
-        return (a, b)
+-- distinct :: (Ord e, Eq a, Foldable t) => t (Cell e (Wide a)) -> Builder ()
+-- distinct (toList -> cells) = for_ pairs $ \(a, b) -> do
+--     x <- emptyCell
+--     x =! (a =? b)
+--     forbid x
+--   where
+--     pairs = do
+--         a <- cells
+--         b <- cells
+--         guard (a /= b)
+--         return (a, b)
 
-switch :: forall a e.
-       (BoundedLattice a, Ord e)
-       => Cell e (Wide Bool)
-       -> Cell e a
-       -> Cell e a
+switch :: Cell Bool
+       -> Cell a
+       -> Cell a
        -> Builder ()
 switch predicateCell inputCell@Cell{} outputCell@Cell{} = do
     let p :: Propagator = do
-        shouldPropagate <- contents predicateCell
-        input <- contents inputCell
-        let rA :: Evidence e a = shouldPropagate >>~ \case
-                    Bottom -> bottom
-                    Top -> pure top -- ??
-                    Middle True -> input
-                    Middle False -> bottom
-        addContent rA outputCell
+        using predicateCell $ \shouldPropagate -> do
+            when shouldPropagate $ do
+                using inputCell $ \input -> do
+                    addContent input outputCell
     addNeighbour predicateCell p
     addNeighbour inputCell p
 
-notCell :: Cell f (Wide Bool) -> Cell f (Wide Bool) -> Builder ()
+notCell :: Cell Bool -> Cell Bool -> Builder ()
 notCell inp out = do
-    out =! P.map (fmap not) inp
+    out =! mapP not inp
 
-conditional :: forall a e.
-            (BoundedLattice a, Ord e)
-            => Cell e (Wide Bool)
-            -> Cell e a
-            -> Cell e a
-            -> Cell e a
+conditional :: Cell Bool
+            -> Cell a
+            -> Cell a
+            -> Cell a
             -> Builder ()
 conditional control onTrue onFalse output = do
-    output =! switch control onTrue
     notControl <- store (notCell control)
+    output =! switch control onTrue
     output =! switch notControl onFalse
 
--- oneOf :: forall e t a. (Ord e, Foldable t, Eq a) => t a -> Cell e (Wide a) -> Builder ()
+-- oneOf :: (Foldable t, Mergeable a) => t a -> Cell a -> Builder ()
 -- oneOf (toList -> values) out = do
---     cells <- for values $ \a -> do
---         newCell $ pure @e (Middle a)
+--     cells <- for values newCell
 --     oneOfTheCells cells out
 
 
