@@ -7,3 +7,5 @@ import Propellant.Prop as P
 import Propellant.Cell as P
 import Propellant.Propagators as P
 import Propellant.Supports as P
+import Propellant.Guesser as P
+import Propellant.Propagators.Logic as P

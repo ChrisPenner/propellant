@@ -3,17 +3,45 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module Propellant.Supports where
 
 import Propellant.Merge
+import Propellant.Prop
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Data.Functor.Compose
 import Control.Applicative
 import Control.Monad
 
-data Evidence e a = Evidence (M.Map (S.Set e) (Merged a))
+data Support e = Hypothetical e Propagator | Valid e
+  deriving (Functor, Foldable, Traversable)
+
+instance (Show e) => Show (Support e) where
+  show (Hypothetical e _) = "Hypothetical " <> show e
+  show (Valid e) = "Valid " <> show e
+
+instance (Eq e) => Eq (Support e) where
+  (Hypothetical e _) == (Hypothetical e' _) = e == e'
+  (Valid e) == (Valid e') = e == e'
+  _ == _ = False
+
+instance (Ord e) => Ord (Support e) where
+  (Hypothetical e _) <= (Hypothetical e' _) = e <= e'
+  Hypothetical{} <= Valid{} = True
+  Valid{} <= Hypothetical{} = False
+  Valid e <= Valid e' = e <= e'
+
+instance Applicative Support where
+  pure = Valid
+  Hypothetical f p <*> Hypothetical a p' = Hypothetical (f a) (p <> p')
+  Valid f <*> Hypothetical a p = Hypothetical (f a) p
+  Hypothetical f p <*> Valid a = Hypothetical (f a) p
+  Valid f <*> Valid a = Valid (f a)
+
+data Evidence e a = Evidence (M.Map (S.Set (Support e)) (Merged a))
   deriving (Show, Eq, Functor)
 
 instance (Ord e, Mergeable a) => Semigroup (Evidence e a) where
@@ -47,7 +75,7 @@ instance (Ord e) => Applicative (Evidence e) where
   (<*>) :: forall a b. Evidence e (a -> b) -> Evidence e a -> Evidence e b
   Evidence f <*> Evidence a = Evidence (M.fromList results)
     where
-      results :: [(S.Set e, Merged b)]
+      results :: [(S.Set (Support e), Merged b)]
       results = getCompose . getCompose $ (Compose . Compose) (M.toList f) <*> (Compose . Compose) (M.toList a)
 
 instance (Ord e, Eq a, Mergeable a) => Mergeable (Evidence e a) where
@@ -64,13 +92,18 @@ ev >>~ f = eJoin $ fmap f ev
 eJoin :: (Ord e, Mergeable a) => Evidence e (Evidence e a) -> Evidence e a
 eJoin (Evidence m) = foldMap flatten . M.toList $ m
   where
-    flatten :: Ord e => (S.Set e, Merged (Evidence e b)) -> Evidence e b
+    flatten :: Ord e => (S.Set (Support e), Merged (Evidence e b)) -> Evidence e b
     flatten (e, Contradiction) = Evidence $ M.singleton e Contradiction
     flatten (e, Changed (Evidence n)) = Evidence $ M.mapKeys (e <>) n
     flatten (e, NoChange (Evidence n)) = Evidence $ M.mapKeys (e <>) n
 
 implies :: e -> v -> Evidence e v
-implies e v = Evidence (M.singleton (S.singleton e) (pure v))
+implies e v = Evidence (M.singleton (S.singleton (pure e)) (pure v))
+
+implies' :: S.Set (Support e) -> v -> Evidence e v
+implies' e v = Evidence (M.singleton e (pure v))
+
+
 
 
 -- clean :: (Ord e, Eq b, Lattice b) => Evidence e b -> Evidence e b

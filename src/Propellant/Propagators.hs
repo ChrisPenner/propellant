@@ -21,8 +21,8 @@ liftP2 f inA inB out = do
           Just result ->
               addContent result out
 
--- equalizer :: Eq a => Cell a -> Cell a -> Cell Bool -> Builder ()
--- equalizer a b c = pBinOp (==) a b c
+equalizer :: Eq a => Cell a -> Cell a -> Cell Bool -> Builder ()
+equalizer a b c = liftP2 (==) a b c
 
 adder :: (Num n) => Cell n -> Cell n -> Cell n -> Builder ()
 adder = liftP2 (+)

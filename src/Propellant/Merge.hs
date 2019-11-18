@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Propellant.Merge where
 
 import Data.Ratio
@@ -14,7 +16,7 @@ data Merged a =
         Contradiction
       | NoChange a
       | Changed a
-  deriving (Show, Eq, Functor, Ord)
+  deriving (Show, Eq, Functor, Ord, Foldable, Traversable)
 
 instance Applicative Merged where
   pure = NoChange

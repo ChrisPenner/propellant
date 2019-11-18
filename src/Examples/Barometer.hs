@@ -3,8 +3,6 @@
 module Examples.Barometer where
 
 import Propellant
-import Text.Printf
-import qualified Data.Set as S
 import Numeric.Interval.Internal
 
 -- fallDuration :: Fractional n => Cell -> Cell -> Builder ()

@@ -4,7 +4,9 @@
 {-# LANGUAGE TypeApplications #-}
 module Propellant.Propagators.Logic where
 
-import Propellant
+import Propellant.Cell
+import Propellant.Prop
+import Propellant.Propagators 
 import Control.Monad
 
 (=?) :: Eq a => Cell a -> Cell a -> Cell Bool -> Builder ()
