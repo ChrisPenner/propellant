@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE ViewPatterns #-}
 module Propellant.Supported where
 
 import qualified Data.Set as S
@@ -10,7 +11,7 @@ import Propellant.Merge
 import Control.Applicative
 import Data.Foldable
 import Data.Monoid
-import Numeric.Interval.Internal
+import Control.Monad
 
 data Supported e a = Supported (S.Set e) a
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
@@ -18,6 +19,12 @@ data Supported e a = Supported (S.Set e) a
 instance (Ord e) => Applicative (Supported e) where
   pure = Supported mempty
   Supported e f <*> Supported e' a   = Supported (e <> e') (f a)
+
+instance (Ord e) => Monad (Supported e) where
+  return = pure
+  Supported e a >>= f =
+      case f a of
+          Supported e' x -> Supported (e <> e') x
 
 instance (Mergeable a, Ord e) => Mergeable (Supported e a) where
   merge before@(Supported e a) new@(Supported e' a') =
@@ -83,6 +90,25 @@ instance (Mergeable a, Ord e, Ord a) => Mergeable (TMS e a) where
       let result = before <> new
        in if result == before then NoChange result
                               else Changed result
+
+-- isContradiction :: Merged -> Bool
+-- isContradiction Contradiction{} = True
+-- isContradiction _ = False
+
+-- TODO: make this not partial
+mostInformative :: forall e a. (Mergeable a, Ord e) => TMS e a -> (Supported e a)
+mostInformative (TMS m) =
+    (maximumBy go . concatMap toList . fmap combine . toList $ S.powerSet m)
+  where
+    combine :: S.Set (Supported e a) -> Merged (Supported e a)
+    combine (toList -> (x : xs)) = foldM merge x xs
+    -- Empty set
+    combine _ = Contradiction
+    go :: (Supported e a) -> (Supported e a) -> Ordering
+    go (Supported _ a) (Supported _ b)
+      | a `leq` b && b `leq` a = EQ
+      | a `leq` b = LT
+      | otherwise = GT
 
 -- instance (Ord e, Mergeable a) => Semigroup (TMS e a) where
 --   a <> b = superSet $ accumulateEvidence a b
