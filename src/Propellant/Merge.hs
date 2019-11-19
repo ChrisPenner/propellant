@@ -6,6 +6,8 @@ module Propellant.Merge where
 
 import Data.Ratio
 import Numeric.Interval.Internal
+import qualified Data.Set as S
+import qualified Data.IntSet as IS
 
 class Mergeable a where
   merge :: a -> a -> Merged a
@@ -15,7 +17,7 @@ class Mergeable a where
 data Merged a =
         Contradiction
       | NoChange a
-      | Changed a
+      | Changed (S.Set IS.IntSet) a
   deriving (Show, Eq, Functor, Ord, Foldable, Traversable)
 
 instance Applicative Merged where
@@ -23,14 +25,17 @@ instance Applicative Merged where
   Contradiction <*> _ = Contradiction
   _ <*> Contradiction = Contradiction
   NoChange f <*> NoChange a = NoChange $ f a
-  Changed f <*> NoChange a = Changed $ f a
-  NoChange f <*> Changed a = Changed $ f a
-  Changed f <*> Changed a = Changed $ f a
+  Changed s f <*> NoChange a = Changed s $ f a
+  NoChange f <*> Changed s a = Changed s $ f a
+  Changed s f <*> Changed s' a = Changed (s <> s') $ f a
 
 instance Monad Merged where
   return = pure
   Contradiction >>= _f = Contradiction
-  Changed a >>= f = f a
+  Changed s a >>= f = case f a of
+      Changed s' b -> Changed (s <> s') b
+      NoChange b -> Changed s b
+      Contradiction -> Contradiction
   NoChange a >>= f = f a
 
 
@@ -61,8 +66,8 @@ instance (Eq n) => Mergeable (Ratio n) where
 
 instance Mergeable a => Mergeable (Maybe a) where
   merge Nothing Nothing = NoChange Nothing
-  merge (Just a) Nothing = Changed (Just a)
-  merge Nothing (Just a)= Changed (Just a)
+  merge (Just a) Nothing = Changed mempty (Just a)
+  merge Nothing (Just a)= Changed mempty (Just a)
   merge (Just a) (Just b)= Just <$> merge a b
 
 instance Ord n => Mergeable (Interval n) where
@@ -73,6 +78,6 @@ instance Ord n => Mergeable (Interval n) where
     | otherwise =
         let merged = I (max l l') (min h h')
          in if merged == old then NoChange merged
-                         else Changed merged
+                         else Changed mempty merged
   merge Empty _ = NoChange Empty
-  merge (I _ _) Empty = Changed Empty
+  merge (I _ _) Empty = Changed mempty Empty

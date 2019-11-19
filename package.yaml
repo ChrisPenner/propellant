@@ -44,6 +44,9 @@ dependencies:
 - lattices
 - intervals
 - concurrency
+- unordered-containers
+- hashable
+- semigroupoids
 
 ghc-options:
   - -Wall
