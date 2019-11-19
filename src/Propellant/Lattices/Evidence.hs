@@ -107,17 +107,17 @@ showEvidenceLine es v = (intercalate ", " . fmap show $ (S.toList es)) <> ":\n -
 evidenceWithout :: (Ord e) => e -> Evidence e v -> Evidence e v
 evidenceWithout e (Evidence m) = Evidence (flip M.filterWithKey m $ \es _ -> not $ e `S.member` es)
 
-one, two, three :: Evidence String (Range Int)
-one = "one" `implies` (Range 1 10)
-two = "two" `implies` (Range 3 12)
-three = "three" `implies` (Range 4 6)
-test :: String
-test =  showAllEvidence . joins $
-  [ one
-  , two
-  , three
-  , one + two
-  ]
--- expected:
--- >>> test
--- (fromList ["four","three"],Range {rangeMin = 4, rangeMax = 8})
+-- one, two, three :: Evidence String (Range Int)
+-- one = "one" `implies` (Range 1 10)
+-- two = "two" `implies` (Range 3 12)
+-- three = "three" `implies` (Range 4 6)
+-- test :: String
+-- test =  showAllEvidence . joins $
+--   [ one
+--   , two
+--   , three
+--   , one + two
+--   ]
+-- -- expected:
+-- -- >>> test
+-- -- (fromList ["four","three"],Range {rangeMin = 4, rangeMax = 8})

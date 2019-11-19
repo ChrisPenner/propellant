@@ -19,25 +19,25 @@ data Cell a where
 instance Eq (Cell a) where
   Cell c _ _ == Cell c' _ _ = c == c'
 
-contents :: Cell a -> Prop (Maybe a)
+contents :: HasSTM m => Cell a -> m (Maybe a)
 contents  = liftSTM . readTVar . cellContent
 
-constructCell :: Mergeable a => Maybe a ->  Builder (Cell a)
+constructCell :: (HasSTM m, Mergeable a) => Maybe a -> m (Cell a)
 constructCell a = Cell <$> liftSTM (newTVar $ a) <*> liftSTM (newTVar []) <*> pure merge
 
-newCell :: Mergeable a => a ->  Builder (Cell a)
+newCell :: (HasSTM m, Mergeable a) => a ->  m (Cell a)
 newCell = constructCell . Just
 
-emptyCell :: Mergeable a => Builder (Cell a)
+emptyCell :: (HasSTM m, Mergeable a) => m (Cell a)
 emptyCell = constructCell Nothing
 
 readCell :: Cell a -> IO (Maybe a)
 readCell = readTVarIO . cellContent
 
-addContent :: a -> Cell a -> Propagator
+addContent :: (HasSTM m, HasScheduler m) => a -> Cell a -> m ()
 addContent new cell@(Cell c _ merge') = do
     before <- liftSTM $ readTVar c
-    let merged = merge' before (Just new)
+    let merged = merge' (Just new) before
     case merged of
         NoChange a -> liftSTM $ writeTVar c a
         Changed a -> do
@@ -45,12 +45,12 @@ addContent new cell@(Cell c _ merge') = do
             propagate cell
         Contradiction -> error "contradiction!"
 
-propagate :: Cell a -> Propagator
+propagate :: (HasSTM m, HasScheduler m) => Cell a -> m ()
 propagate (Cell _ depsT _) = do
     deps <- liftSTM $ readTVar depsT
     for_ deps schedule
 
-addNeighbour :: Cell a -> Propagator -> Builder ()
+addNeighbour :: (HasScheduler m, HasSTM m) => Cell a -> Propagator -> m ()
 addNeighbour cell prop  = do
     liftSTM $ modifyTVar (cellDependents cell) (prop:)
     schedule prop
@@ -61,7 +61,7 @@ using c f = contents c >>= \case
   Just a -> f a
 
 usingWhen :: Cell a -> (a -> Bool) -> (a -> Propagator) -> Propagator
-usingWhen c predicate f = 
+usingWhen c predicate f =
     using c $ \a -> if predicate a
         then f a
         else return ()

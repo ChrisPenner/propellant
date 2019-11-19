@@ -12,7 +12,7 @@ import Control.Applicative
 import Data.Foldable
 import Data.Monoid
 import Control.Monad
--- import Numeric.Interval.Internal
+import Control.Lens
 
 data Supported e a = Supported (S.Set e) a
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
@@ -28,9 +28,9 @@ instance (Ord e) => Monad (Supported e) where
           Supported e' x -> Supported (e <> e') x
 
 instance (Mergeable a, Ord e) => Mergeable (Supported e a) where
-  merge before@(Supported e a) new@(Supported e' a') =
-      case (merge a a', merge a' a) of
-          (NoChange _, _) -> NoChange before
+  merge new@(Supported e' a') existing@(Supported e a) =
+      case (merge a' a, merge a a') of
+          (NoChange _, _) -> NoChange existing
           (_, NoChange _) -> NoChange new
           (Changed result, _) -> Changed (Supported (e <> e') result)
           (_, Changed result) -> Changed (Supported (e <> e') result)
@@ -53,19 +53,24 @@ supports e a = Supported (S.singleton e) a
 
 -------------
 
-data TMS e a = TMS (S.Set (Supported e a))
+data TMS e a = TMS { knowledge :: (S.Set (Supported e a))
+                   , banned :: Maybe (S.Set e)}
   deriving (Show, Eq)
 
+singletonTMS :: Supported e a -> TMS e a
+singletonTMS s = TMS (S.singleton s) Nothing
+
 addSupport :: forall e a. (Mergeable a, Ord e, Ord a) => Supported e a -> TMS e a -> TMS e a
-addSupport new@(Supported es _) (TMS xs) =
+addSupport new@(Supported es _) (TMS xs bans) =
     let (result, Any alreadySubsumed) = foldMap go (toList xs)
-     in TMS $ if alreadySubsumed then result
-                                 else S.insert new result
+        claims = if alreadySubsumed then result
+                                    else S.insert new result
+     in TMS claims bans
   where
     go :: Supported e a -> (S.Set (Supported e a), Any)
     go existing@(Supported es' _) =
         -- If deps are supports are equal we can just merge
-        if | es == es' -> (foldMap  S.singleton (merge existing new), Any True)
+        if | es == es' -> (foldMap  S.singleton (merge new existing ), Any True)
            | new `subsumes` existing -> (S.singleton new, Any True)
            | existing `subsumes` new -> (S.singleton existing, Any True)
            | otherwise -> (S.singleton existing, Any False)
@@ -81,28 +86,29 @@ leq a b = case merge b a of
     Contradiction -> False
 
 instance (Mergeable a, Ord e, Ord a) => Semigroup (TMS e a) where
-  TMS a <> b = S.foldl' (flip addSupport) b a
+  TMS a bans <> b =
+      let TMS newClaims bans' = S.foldl' (flip addSupport) b a
+       in TMS newClaims (bans <> bans')
 
 instance (Mergeable a, Ord e, Ord a) => Monoid (TMS e a) where
-  mempty = TMS mempty
+  mempty = TMS mempty Nothing
 
 instance (Mergeable a, Ord e, Ord a) => Mergeable (TMS e a) where
-  merge before new =
-      let result = before <> new
-       in if result == before then NoChange result
-                              else Changed result
+  merge new existing =
+      let result = existing <> new
+       in if result == existing then NoChange result
+                                else Changed result
 
 -- isContradiction :: Merged -> Bool
 -- isContradiction Contradiction{} = True
 -- isContradiction _ = False
 
--- TODO: make this not partial
-mostInformative :: forall e a. (Mergeable a, Ord e) => TMS e a -> (Supported e a)
-mostInformative (TMS m) =
-    (maximumBy compareDefinedness . concatMap toList . fmap combine . toList $ S.powerSet m)
+mostInformative :: forall e a. (Mergeable a, Ord e) => TMS e a -> Maybe (Supported e a)
+mostInformative (TMS m _) =
+    (maximumByOf traversed compareDefinedness . concatMap toList . fmap combine . toList $ S.powerSet m)
   where
     combine :: S.Set (Supported e a) -> Merged (Supported e a)
-    combine (toList -> (x : xs)) = foldM merge x xs
+    combine (toList -> (x : xs)) = foldM (flip merge) x xs
     -- Empty set
     combine _ = Contradiction
 

@@ -21,8 +21,11 @@ instance Semigroup s => Semigroup (Prop s) where
 instance Monoid m => Monoid (Prop m) where
   mempty = Prop (return mempty)
 
-class HasSTM m where
+class Monad m => HasSTM m where
   liftSTM :: STM a -> m a
+
+instance HasSTM IO where
+  liftSTM = atomically
 
 instance HasSTM Builder where
   liftSTM = Builder . lift
